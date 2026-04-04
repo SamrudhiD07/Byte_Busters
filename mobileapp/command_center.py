@@ -164,47 +164,9 @@ def handle_evidence():
     
     return jsonify({"status": "Command Center Received Media Report"}), 200
 
-# --- 8. UPLOAD VIDEO ENDPOINT ---
-from werkzeug.utils import secure_filename
-import os
-import uuid
-
-# Set up the target directory in the Command_Dashboard public folder for serving and scanning later
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Gets the Byte_Busters root dir
-VIDEO_UPLOAD_FOLDER = os.path.join(BASE_DIR, 'Command_Dashboard', 'public', 'video_evidence')
-os.makedirs(VIDEO_UPLOAD_FOLDER, exist_ok=True)
-
-@app.route('/upload_video', methods=['POST'])
-def upload_video():
-    if 'video' not in request.files:
-        return jsonify({"status": "ERROR", "message": "No video file provided"}), 400
-    
-    camera_id = request.form.get('camera_id', 'UNKNOWN_CAM')
-    video_file = request.files['video']
-    
-    if video_file.filename == '':
-        return jsonify({"status": "ERROR", "message": "No video selected"}), 400
-
-    # Ensure secure filename and uniqueness
-    from werkzeug.utils import secure_filename
-    original_filename = secure_filename(video_file.filename)
-    unique_id = uuid.uuid4().hex[:8]
-    ext = os.path.splitext(original_filename)[1]
-    
-    # Save as: CAM_PUN_01_a1b2c3d4.mp4
-    filename = f"{camera_id}_{unique_id}{ext}"
-    filepath = os.path.join(VIDEO_UPLOAD_FOLDER, filename)
-    
-    video_file.save(filepath)
-    print(f"\n🎥 VIDEO UPLOADED SUCCESS: {filepath}")
-    
-    # Returning the final stored path/filename so frontend knows it succeeded
-    return jsonify({
-        "status": "SUCCESS", 
-        "message": f"Video successfully saved for {camera_id}",
-        "filename": filename,
-        "filepath": filepath
-    }), 200
+# --- 8. UPLOAD VIDEO ENDPOINT (MOVED TO AI_ENGINE:5002) ---
+# The video upload endpoint and disk writing logic has been relocated 
+# to AI_Engine/api.py so it can be handled directly by the AI inference layer.
 
 # --- 9. START SERVER ---
 if __name__ == '__main__':

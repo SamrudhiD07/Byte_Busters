@@ -349,7 +349,7 @@ const Dashboard = () => {
                     formData.append('camera_id', uploadCameraId);
                     
                     try {
-                      const res = await fetch(`http://${window.location.hostname}:5001/upload_video`, {
+                      const res = await fetch(`http://${window.location.hostname}:5002/upload_video`, {
                         method: 'POST',
                         body: formData
                       });

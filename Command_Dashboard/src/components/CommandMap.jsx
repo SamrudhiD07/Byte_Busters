@@ -7,6 +7,11 @@ import { Crosshair, Grid, Layers, Maximize2, Phone, Navigation } from 'lucide-re
 import { motion } from 'framer-motion';
 
 const mapStyles = {
+  street: {
+    name: "Street Map",
+    url: "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+    attribution: "&copy; Google Maps"
+  },
   hybrid: {
     name: "Satellite Hybrid",
     url: "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
@@ -15,11 +20,6 @@ const mapStyles = {
   terrain: {
     name: "Terrain",
     url: "https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
-    attribution: "&copy; Google Maps"
-  },
-  street: {
-    name: "Street Map",
-    url: "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
     attribution: "&copy; Google Maps"
   },
   dark: {
@@ -90,7 +90,7 @@ const icons = {
 // Component to sync map and handle RESIZE / INVALIDATE SIZE
 const MapController = ({ center, zoom, isTactical }) => {
   const map = useMap();
-  
+
   useEffect(() => {
     map.setView(center, zoom);
   }, [center, zoom, map]);
@@ -111,7 +111,7 @@ const MapController = ({ center, zoom, isTactical }) => {
 const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
   const { center, zoom, markers, paths } = mapState;
 
-  const [mapTheme, setMapTheme] = useState('hybrid');
+  const [mapTheme, setMapTheme] = useState('street');
 
   // If NOT in tactical mode, wrap in TacticalPanel. If YES, just return the map content for the floating widget.
   const mapContent = (
@@ -124,36 +124,36 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
             <span className="text-xl font-bold tracking-tight">City View</span>
           </div>
 
-          {/* Bottom Left Filters Widget */}
+          {/* Bottom Left Filters Widget 
           <div className="absolute bottom-6 left-24 z-[1000] flex flex-col items-center gap-2 pointer-events-auto">
             <div className="bg-[#18181b]/80 backdrop-blur-md border border-[#27272a] rounded-xl p-3 flex flex-col items-center gap-3 shadow-2xl">
               <div className="w-16 h-12 bg-slate-800 rounded-md border border-slate-700 overflow-hidden relative shadow-inner">
-                 <div className="absolute inset-0 opacity-40 tactical-grid" />
-                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]" />
-                 <div className="absolute top-1/4 left-1/3 w-1 h-1 rounded-full bg-red-500 shadow-[0_0_5px_#ef4444]" />
-                 <div className="absolute top-2/3 left-2/3 w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
+                <div className="absolute inset-0 opacity-40 tactical-grid" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]" />
+                <div className="absolute top-1/4 left-1/3 w-1 h-1 rounded-full bg-red-500 shadow-[0_0_5px_#ef4444]" />
+                <div className="absolute top-2/3 left-2/3 w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
               </div>
               <button className="bg-[#27272a] hover:bg-slate-700 text-white rounded-md px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 transition-colors">
                 <Layers className="w-3.5 h-3.5" />
                 Filters
               </button>
             </div>
-          </div>
+          </div>*/}
 
           {/* Bottom Right Controls */}
           <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto">
             <div className="bg-[#18181b]/90 backdrop-blur-md border border-[#27272a] rounded-full px-5 py-2 flex items-center gap-5 shadow-2xl">
               <div className="flex items-center gap-3">
-                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Map View</span>
-                 <select 
-                    value={mapTheme}
-                    onChange={(e) => setMapTheme(e.target.value)}
-                    className="bg-zinc-800 text-xs font-semibold text-zinc-200 outline-none border border-zinc-700/50 rounded-md px-2 py-1 cursor-pointer focus:border-cyan-500 transition-colors"
-                 >
-                    {Object.entries(mapStyles).map(([key, style]) => (
-                       <option key={key} value={key}>{style.name}</option>
-                    ))}
-                 </select>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Map View</span>
+                <select
+                  value={mapTheme}
+                  onChange={(e) => setMapTheme(e.target.value)}
+                  className="bg-zinc-800 text-xs font-semibold text-zinc-200 outline-none border border-zinc-700/50 rounded-md px-2 py-1 cursor-pointer focus:border-cyan-500 transition-colors"
+                >
+                  {Object.entries(mapStyles).map(([key, style]) => (
+                    <option key={key} value={key}>{style.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="w-px h-4 bg-white/10" />
               <button className="text-zinc-400 hover:text-white transition-opacity">
@@ -162,20 +162,20 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
             </div>
           </div>
 
-          {/* Map Zoom Controls (Left) */}
+          {/* Map Zoom Controls (Left) 
           <div className="absolute top-1/2 -translate-y-1/2 left-6 z-[1000] flex flex-col gap-2">
             <div className="bg-[#18181b]/90 backdrop-blur border border-[#27272a] rounded-lg p-1 flex flex-col">
               <button className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white">+</button>
               <div className="h-px bg-white/5 mx-1" />
               <button className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white">-</button>
             </div>
-          </div>
+          </div>*/}
         </>
       )}
 
-      <MapContainer 
-        center={center} 
-        zoom={zoom} 
+      <MapContainer
+        center={center}
+        zoom={zoom}
         style={{ height: '100%', width: '100%', background: '#0a0a0a' }}
         zoomControl={false}
         attributionControl={false}
@@ -185,13 +185,13 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
           maxZoom={20}
           attribution={mapStyles[mapTheme].attribution}
         />
-        
+
         <MapController center={center} zoom={zoom} isTactical={isTactical} />
 
         {markers.map((marker) => (
-          <Marker 
-            key={marker.id} 
-            position={marker.pos} 
+          <Marker
+            key={marker.id}
+            position={marker.pos}
             icon={marker.type === 'SOS_MARKER' ? createSosIcon(marker.label?.replace(/[\[\]]/g, '')) : (icons[marker.type] || icons.HUB)}
           >
             {marker.type === 'SOS_MARKER' ? (
@@ -202,8 +202,8 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
                       <span className="text-lg">🚨</span>
                     </div>
                     <div>
-                       <div className="text-[10px] text-red-400 font-black uppercase tracking-widest leading-none mb-1">MOBILE SOS ALERT</div>
-                       <div className="text-sm font-black text-white">{marker.label?.replace(/[\[\]]/g, '')}</div>
+                      <div className="text-[10px] text-red-400 font-black uppercase tracking-widest leading-none mb-1">MOBILE SOS ALERT</div>
+                      <div className="text-sm font-black text-white">{marker.label?.replace(/[\[\]]/g, '')}</div>
                     </div>
                   </div>
                   <div className="space-y-2 mb-4">
@@ -212,7 +212,7 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
                       <span className="text-xs font-bold text-zinc-400 tabular-nums">{marker.pos[0].toFixed(4)}° N, {marker.pos[1].toFixed(4)}° E</span>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => { if (onDeployClick) onDeployClick(); }}
                     className="w-full bg-red-500 hover:bg-red-400 text-white font-black text-xs py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
                   >
@@ -228,8 +228,8 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
                       <Phone className="w-5 h-5 text-red-500" />
                     </div>
                     <div>
-                       <div className="text-[10px] text-red-500 font-black uppercase tracking-widest leading-none mb-1">Incoming Alert</div>
-                       <div className="text-sm font-black text-white">Case ID: 2667(9)8B05DEY</div>
+                      <div className="text-[10px] text-red-500 font-black uppercase tracking-widest leading-none mb-1">Incoming Alert</div>
+                      <div className="text-sm font-black text-white">Case ID: 2667(9)8B05DEY</div>
                     </div>
                   </div>
 
@@ -241,15 +241,15 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
                     <div className="flex items-start gap-3">
                       <div className="text-xs font-black text-zinc-600 uppercase mt-0.5">Addr:</div>
                       <div className="text-xs font-bold text-zinc-300 leading-relaxed">
-                        6316 N 83rd St, Redmond, WA<br/>98052, USA
+                        6316 N 83rd St, Redmond, WA<br />98052, USA
                       </div>
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => {
-                        console.log("MARKER DEPLOY CLICKED");
-                        if (onDeployClick) onDeployClick();
+                      console.log("MARKER DEPLOY CLICKED");
+                      if (onDeployClick) onDeployClick();
                     }}
                     className="w-full bg-cyan-400 hover:bg-cyan-300 text-black font-black text-xs py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_20px_rgba(0,229,255,0.3)]"
                   >

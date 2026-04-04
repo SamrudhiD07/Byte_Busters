@@ -334,7 +334,7 @@
         // --- CONFIGURATION ---
         // Grab the secret keys from the config file we just loaded
         const API_KEY = window.APP_CONFIG.GEMINI_API_KEY; 
-        const MAC_IP_ADDRESS = window.APP_CONFIG.MAC_IP_ADDRESS; 
+        const BACKEND_IP = window.APP_CONFIG.BACKEND_IP; 
 
         const genAI = new GoogleGenerativeAI(API_KEY);
       const statusText = document.getElementById("ai-status");
@@ -422,7 +422,7 @@
 
         // Send manual text to backend Endpoint A
         try {
-          await fetch(`http://${MAC_IP_ADDRESS}:5001/sos_trigger`, {
+          await fetch(`http://${BACKEND_IP}:5001/sos_trigger`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -541,7 +541,7 @@
           statusText.innerText = `✅ Evidence Sent. Severity: ${analysis.severity}`;
 
           // Send JSON to backend Endpoint B
-          await fetch(`http://${MAC_IP_ADDRESS}:5001/report_evidence`, {
+          await fetch(`http://${BACKEND_IP}:5001/report_evidence`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(analysis),

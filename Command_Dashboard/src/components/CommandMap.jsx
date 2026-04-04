@@ -43,6 +43,21 @@ const createAlertIcon = () => L.divIcon({
   iconAnchor: [16, 16],
 });
 
+// SOS Pulsing Marker — concentric red rings radiating outward
+const createSosIcon = (label) => L.divIcon({
+  className: 'custom-sos-icon',
+  html: `
+    <div style="position:relative; display:flex; align-items:center; justify-content:center; width:60px; height:60px;">
+      <div class="sos-pulse-ring" style="top:10px; left:10px;"></div>
+      <div class="sos-pulse-ring-2" style="top:10px; left:10px;"></div>
+      <div class="sos-core" style="position:relative; z-index:10;"></div>
+      <div class="sos-label">${label || 'SOS'}</div>
+    </div>
+  `,
+  iconSize: [60, 60],
+  iconAnchor: [30, 30],
+});
+
 const icons = {
   HUB: createDroneIcon('#00e5ff'),
   UNIT: createDroneIcon('#00ff00'),
@@ -145,9 +160,35 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
           <Marker 
             key={marker.id} 
             position={marker.pos} 
-            icon={icons[marker.type] || icons.HUB}
+            icon={marker.type === 'SOS_MARKER' ? createSosIcon(marker.label?.replace(/[\[\]]/g, '')) : (icons[marker.type] || icons.HUB)}
           >
-            {marker.type === 'TARGET' ? (
+            {marker.type === 'SOS_MARKER' ? (
+              <Popup className="tactical-popup custom-pop-red" maxWidth={300}>
+                <div className="bg-[#1a0a0a]/95 backdrop-blur-md border border-red-500/50 rounded-xl p-5 text-white shadow-2xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-red-500/30 border border-red-500/50 flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-pulse">
+                      <span className="text-lg">🚨</span>
+                    </div>
+                    <div>
+                       <div className="text-[10px] text-red-400 font-black uppercase tracking-widest leading-none mb-1">MOBILE SOS ALERT</div>
+                       <div className="text-sm font-black text-white">{marker.label?.replace(/[\[\]]/g, '')}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Navigation className="w-4 h-4 text-zinc-500" />
+                      <span className="text-xs font-bold text-zinc-400 tabular-nums">{marker.pos[0].toFixed(4)}° N, {marker.pos[1].toFixed(4)}° E</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => { if (onDeployClick) onDeployClick(); }}
+                    className="w-full bg-red-500 hover:bg-red-400 text-white font-black text-xs py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+                  >
+                    🚁 DEPLOY DRONE NOW
+                  </button>
+                </div>
+              </Popup>
+            ) : marker.type === 'TARGET' ? (
               <Popup className="tactical-popup custom-pop-red" maxWidth={300}>
                 <div className="bg-[#18181b]/95 backdrop-blur-md border border-red-500/50 rounded-xl p-5 text-white shadow-2xl">
                   <div className="flex items-center gap-3 mb-4">

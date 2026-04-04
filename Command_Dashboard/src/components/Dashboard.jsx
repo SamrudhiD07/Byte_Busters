@@ -10,14 +10,22 @@ import LiveDroneFeed from './LiveDroneFeed';
 import MissionHUD from './MissionHUD';
 import DeployModal from './DeployModal';
 import FeedsView from './FeedsView';
+import IntelBrief from './IntelBrief';
 import { Peer } from 'peerjs';
 
 const Dashboard = () => {
-  const { mapState, fleetStatus, telemetry, alertLog, deployDrone, setCurrentActiveDroneSource } = useSystemState();
+  const { 
+    mapState, fleetStatus, telemetry, alertLog, deployDrone, 
+    setCurrentActiveDroneSource, 
+    sosEmergency, setSosEmergency,
+    intelBrief, setIntelBrief
+  } = useSystemState();
+  
   const [peerStatus, setPeerStatus] = React.useState('OFFLINE');
   const [activeMission, setActiveMission] = React.useState(null); 
   const [activeView, setActiveView] = React.useState('dashboard'); 
   const [isDeployModalOpen, setIsDeployModalOpen] = React.useState(false);
+  const [pendingAlertId, setPendingAlertId] = React.useState(null);
 
   // Function to handle global redirects from any component
   const handleDroneRedirect = (source) => {
@@ -29,6 +37,12 @@ const Dashboard = () => {
   // Filter for high-priority alerts that need manual approval
   const pendingAlerts = alertLog.filter(a => a.status === 'PENDING_AUTHORITY');
 
+  // ── AUTO-OPEN DEPLOY MODAL ON SOS ──
+  React.useEffect(() => {
+    if (sosEmergency) {
+      setIsDeployModalOpen(true);
+    }
+  }, [sosEmergency]);
 
   // Maintain PeerJS logic for backend connectivity
   React.useEffect(() => {
@@ -46,7 +60,9 @@ const Dashboard = () => {
     return () => peer.destroy();
   }, []);
 
-  const handleDeploy = (caseId) => {
+  const handleDeploy = (caseId, droneId = 'SN_DRONE01') => {
+    // Update drone target in system context if needed
+    deployDrone(caseId, droneId); 
     setActiveMission(caseId);
     setActiveView('drone');
   };
@@ -54,6 +70,39 @@ const Dashboard = () => {
   const handleEndMission = () => {
     setActiveMission(null);
     setActiveView('dashboard');
+  };
+
+  // Handle SOS deploy confirmation
+  const handleSOSDeploy = (droneId) => {
+    setIsDeployModalOpen(false);
+    if (sosEmergency) {
+      // Deploy the first pending alert
+      const firstPending = alertLog.find(a => a.status === 'PENDING_AUTHORITY');
+      if (firstPending) {
+        handleDeploy(firstPending.id, droneId);
+      } else {
+        handleDeploy('SOS_MISSION', droneId);
+      }
+    } else if (pendingAlertId) {
+      handleDeploy(pendingAlertId, droneId);
+      setPendingAlertId(null);
+    } else {
+      handleDeploy('MANUAL_MISSION', droneId);
+    }
+    setSosEmergency(null);
+  };
+
+  // Handle SOS standby (dismiss without deploying)
+  const handleSOSStandby = () => {
+    setSosEmergency(null);
+    setPendingAlertId(null);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setIsDeployModalOpen(false);
+    setSosEmergency(null);
+    setPendingAlertId(null);
   };
 
   return (
@@ -144,8 +193,8 @@ const Dashboard = () => {
                       <div className="text-[9px] font-bold text-white/70 mb-3 uppercase">{alert.object} DETECTED</div>
                       <button 
                         onClick={() => {
-                          deployDrone(alert.id);
-                          handleDeploy(alert.id);
+                          setPendingAlertId(alert.id);
+                          setIsDeployModalOpen(true);
                         }}
                         className="bg-[#00E5FF] hover:bg-cyan-400 text-black text-[10px] font-black w-full rounded-md py-2 transition-all uppercase tracking-widest shadow-[0_0_15px_rgba(0,229,255,0.3)] active:scale-95"
                       >
@@ -189,13 +238,19 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Deploy Modal — handles both manual and SOS-triggered deployments */}
         <DeployModal 
           isOpen={isDeployModalOpen}
-          onClose={() => setIsDeployModalOpen(false)}
-          onDeploy={() => {
-            setIsDeployModalOpen(false);
-            handleDeploy('2667(9)8B05DEY');
-          }}
+          onClose={handleModalClose}
+          emergencyData={sosEmergency}
+          onStandby={handleSOSStandby}
+          onDeploy={handleSOSDeploy}
+        />
+
+        {/* Mission Intelligence Brief — visible in ALL views */}
+        <IntelBrief 
+          intelBrief={intelBrief}
+          onDismiss={() => setIntelBrief(null)}
         />
 
       </main>

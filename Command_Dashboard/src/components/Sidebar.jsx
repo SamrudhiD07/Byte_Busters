@@ -26,6 +26,24 @@ const Sidebar = ({ activeTab, onTabChange }) => (
       <NavButton id="incidents" active={activeTab === 'incidents'} icon={AlertTriangle} label="Incid" onClick={onTabChange} />
       <NavButton id="alerts" active={activeTab === 'alerts'} icon={Activity} label="Alerts" onClick={onTabChange} />
       <NavButton id="reports" active={activeTab === 'reports'} icon={Database} label="Reports" onClick={onTabChange} />
+      <div className="w-full flex justify-center py-2">
+        <label className="flex flex-col items-center justify-center cursor-pointer group hover:text-cyan-400 text-slate-500 transition-all">
+          <Camera className="w-6 h-6 group-hover:scale-105 opacity-60 transition-transform" />
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] opacity-80 mt-2 text-center">Video</span>
+          <input 
+            type="file" 
+            accept="video/*" 
+            className="hidden" 
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                console.log('Selected video:', file.name);
+                // Trigger any specific upload logic from here if needed.
+              }
+            }}
+          />
+        </label>
+      </div>
     </nav>
     <div className="p-4 flex flex-col gap-4 border-t border-white/5">
       <NavButton id="config" active={activeTab === 'config'} icon={Settings} label="Config" onClick={onTabChange} />

@@ -1,7 +1,8 @@
 import React from 'react';
+import { toast } from 'react-hot-toast';
 import { 
   Video, Grid, Crosshair, Users, Layers, MoreHorizontal, 
-  ChevronDown, Phone, Shield, Radio, Signal, Battery, Navigation, Plus
+  ChevronDown, Phone, Shield, Radio, Signal, Battery, Navigation, Plus, Camera
 } from 'lucide-react';
 import { useSystemState } from '../context/SystemContext';
 import CommandMap from './CommandMap';
@@ -26,6 +27,24 @@ const Dashboard = () => {
   const [activeView, setActiveView] = React.useState('dashboard'); 
   const [isDeployModalOpen, setIsDeployModalOpen] = React.useState(false);
   const [pendingAlertId, setPendingAlertId] = React.useState(null);
+
+  // VIDEO UPLOAD STATE
+  const [isVideoUploadModalOpen, setIsVideoUploadModalOpen] = React.useState(false);
+  const [uploadVideoFile, setUploadVideoFile] = React.useState(null);
+  const [uploadCameraId, setUploadCameraId] = React.useState('');
+
+  const PUNE_CAMERAS = [
+    { id: 'CAM_PUN_01', name: 'Katraj Junction' },
+    { id: 'CAM_PUN_02', name: 'Swargate Square' },
+    { id: 'CAM_PUN_03', name: 'Shivajinagar Station' },
+    { id: 'CAM_PUN_04', name: 'Kothrud Stand' },
+    { id: 'CAM_PUN_05', name: 'Deccan Gymkhana' },
+    { id: 'CAM_PUN_06', name: 'Hinjewadi Phase 1' },
+    { id: 'CAM_PUN_07', name: 'Baner Road' },
+    { id: 'CAM_PUN_08', name: 'Kharadi Bypass' },
+    { id: 'CAM_PUN_09', name: 'Viman Nagar' },
+    { id: 'CAM_PUN_10', name: 'Wakad Bridge' }
+  ];
 
   // Function to handle global redirects from any component
   const handleDroneRedirect = (source) => {
@@ -132,6 +151,16 @@ const Dashboard = () => {
             active={activeView === 'feeds'} 
             onClick={() => { setActiveView('feeds'); setActiveMission('MANUAL_FEED'); }}
           />
+
+          {/* New Video Upload Button */}
+          <div 
+            onClick={() => setIsVideoUploadModalOpen(true)}
+            className="p-2.5 transition-all cursor-pointer group flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500" 
+            title="Upload Video Feed"
+          >
+            <Camera className="w-5 h-5 transition-colors group-hover:text-cyan-400" />
+          </div>
+
           <SidebarIcon icon={Users} active={activeView === 'team'} onClick={() => setActiveView('team')} />
           <SidebarIcon icon={Layers} active={activeView === 'layers'} onClick={() => setActiveView('layers')} />
         </nav>
@@ -252,6 +281,103 @@ const Dashboard = () => {
           intelBrief={intelBrief}
           onDismiss={() => setIntelBrief(null)}
         />
+
+        {/* Video Upload Selection Modal */}
+        {isVideoUploadModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+              <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Upload Camera Feed</h2>
+              <p className="text-zinc-400 text-sm mb-6">Select a regional camera ID and upload the video source to initiate pipeline analysis.</p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Camera Location</label>
+                  <select 
+                    className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    value={uploadCameraId}
+                    onChange={(e) => setUploadCameraId(e.target.value)}
+                  >
+                    <option value="" disabled>Select a location...</option>
+                    {PUNE_CAMERAS.map(cam => (
+                      <option key={cam.id} value={cam.id}>
+                        {cam.id} - {cam.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Video Source</label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="video/*"
+                      id="video-upload-input"
+                      className="hidden"
+                      onChange={(e) => setUploadVideoFile(e.target.files[0])}
+                    />
+                    <label 
+                      htmlFor="video-upload-input"
+                      className="w-full flex items-center justify-between bg-[#0a0a0a] border border-dashed border-white/20 hover:border-cyan-500/50 rounded-lg p-3 cursor-pointer transition-colors"
+                    >
+                      <span className={`text-sm ${uploadVideoFile ? 'text-cyan-400 font-medium' : 'text-zinc-500'}`}>
+                        {uploadVideoFile ? uploadVideoFile.name : 'Choose video file...'}
+                      </span>
+                      <Video className="w-4 h-4 text-zinc-400" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-8">
+                <button 
+                  className="px-4 py-2 rounded-lg text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setIsVideoUploadModalOpen(false);
+                    setUploadVideoFile(null);
+                    setUploadCameraId('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  disabled={!uploadVideoFile || !uploadCameraId}
+                  className="px-6 py-2 rounded-lg text-sm font-bold bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+                  onClick={async () => {
+                    const formData = new FormData();
+                    formData.append('video', uploadVideoFile);
+                    formData.append('camera_id', uploadCameraId);
+                    
+                    try {
+                      const res = await fetch(`http://${window.location.hostname}:5001/upload_video`, {
+                        method: 'POST',
+                        body: formData
+                      });
+                      
+                      const data = await res.json();
+                      if (data.status === 'SUCCESS') {
+                        toast.success(`Video uploaded successfully to ${uploadCameraId}`);
+                        console.log('Server response:', data);
+                      } else {
+                        toast.error(`Upload failed: ${data.message}`);
+                      }
+                    } catch (err) {
+                      console.error('Upload connection error:', err);
+                      // Show the actual error message in the toast to understand what failed
+                      toast.error(`Connection failed: ${err.message || 'Server completely unreachable'}`);
+                    }
+                    
+                    setIsVideoUploadModalOpen(false);
+                    setUploadVideoFile(null);
+                    setUploadCameraId('');
+                  }}
+                >
+                  Confirm Upload
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </main>
     </div>

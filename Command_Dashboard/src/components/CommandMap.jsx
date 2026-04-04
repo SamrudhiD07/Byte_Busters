@@ -150,8 +150,9 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
         attributionControl={false}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png"
-          maxZoom={19}
+          url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+          maxZoom={20}
+          attribution="&copy; Google Maps"
         />
         
         <MapController center={center} zoom={zoom} isTactical={isTactical} />

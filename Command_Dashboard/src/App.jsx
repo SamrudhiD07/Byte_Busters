@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import MobileDroneNode from './components/MobileDroneNode';
 import Footer from './components/Footer';
+import { Toaster, toast } from 'react-hot-toast';
 
 const DashboardLayout = () => {
   const [activeTab, setActiveTab] = useState('front');
@@ -43,6 +44,19 @@ const ActivityIcon = ({ className }) => (
 const App = () => (
   <SystemProvider>
     <BrowserRouter>
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          style: {
+            background: '#18181b', // zinc-900
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '16px',
+            fontSize: '14px',
+            fontWeight: '600'
+          },
+        }}
+      />
       <Routes>
         <Route path="/" element={<DashboardLayout />} />
         <Route path="/drone" element={<MobileDroneNode />} />

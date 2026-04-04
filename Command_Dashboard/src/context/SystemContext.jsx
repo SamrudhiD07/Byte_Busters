@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { toast } from 'react-hot-toast';
 
 const SystemContext = createContext();
 
@@ -59,6 +60,11 @@ export const SystemProvider = ({ children }) => {
 
       socket.on('cctv_anomaly', (data) => {
         // High-Priority Alert Trigger from CCTV / SOS
+        toast(`⚠️ Anomaly Logged: ${data.label || 'CCTV ALERT'}`, {
+          icon: '👁️',
+          style: { background: '#713f12', color: '#fff', border: '1px solid #eab308' }
+        });
+
         setAlertLog(prev => [{
           id: `ALERT-${Date.now()}`,
           timestamp: new Date().toLocaleTimeString('en-GB', { hour12: false }),
@@ -90,6 +96,12 @@ export const SystemProvider = ({ children }) => {
       // ── 1. The Pulse: UI Pulse Location ──
       socket.on('ui_pulse_location', (data) => {
         console.log('🔴 UI PULSE received:', data);
+        
+        toast.error(`🚨 SOS ALERT: ${data.type} Triggered`, {
+          duration: 8000,
+          style: { background: '#7f1d1d', color: '#fff', border: '1px solid #ef4444' }
+        });
+
         const sosMarkerId = `SOS_${Date.now()}`;
         setMapState(prev => ({
           ...prev,
@@ -142,6 +154,12 @@ export const SystemProvider = ({ children }) => {
       // ── 4. The Intelligence Feed: Update Intel Brief ──
       socket.on('update_intel_brief', (data) => {
         console.log('🧠 INTEL BRIEF received:', data.report);
+        
+        toast.success(`🧠 Intel Brief: ${data.report.priority} Priority`, {
+          duration: 6000,
+          style: { background: '#0891b2', color: '#fff', border: '1px solid #164e63' }
+        });
+
         setIntelBrief({
           severity: data.report.severity,
           priority: data.report.priority,

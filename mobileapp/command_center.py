@@ -2,7 +2,7 @@ import os
 import math
 import random
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from google import genai
@@ -22,6 +22,15 @@ if not api_key:
     print("⚠️ WARNING: GEMINI_API_KEY not found in .env file!")
     
 client = genai.Client(api_key=api_key) if api_key else None
+
+# --- 4. STATIC FILE SERVING ---
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('.', path)
 
 # --- 5. DRONE FLEET & DISTANCE LOGIC ---
 DRONE_FLEET = [
@@ -66,9 +75,9 @@ def handle_trigger():
     details = data.get('details', [])
     manual_note = data.get('manual', '')
 
-    # Random offset for demo variation (within ~500m of Pune center)
-    user_lat = 18.5204 + random.uniform(-0.004, 0.004)
-    user_lng = 73.8567 + random.uniform(-0.004, 0.004)
+    # Get coordinates from request or fallback
+    user_lat = data.get('lat') or 18.5204 + random.uniform(-0.004, 0.004)
+    user_lng = data.get('lng') or 73.8567 + random.uniform(-0.004, 0.004)
 
     print("\n" + "="*50)
     print(f"🚨 MANUAL UI SOS: {incident_type} reported by {user}")
@@ -130,6 +139,7 @@ def handle_trigger():
         "status": "SUCCESS", 
         "drone_dispatched": drone_id,
         "location": [user_lat, user_lng],
+        "distance_km": round(dist, 2),
         "severity": severity
     })
 

@@ -50,12 +50,14 @@ body {
 }
 
 .threat-pulse-strong {
-  animation: threat-pulse 1s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  animation: threat-ping-strong 1s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: rgba(239, 68, 68, 0.8) !important;
+  box-shadow: 0 0 20px #ef4444;
 }
 
-@keyframes threat-pulse {
-  0% { transform: scale(0.8); opacity: 0.8; }
-  100% { transform: scale(2.5); opacity: 0; }
+@keyframes threat-ping-strong {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(4); opacity: 0; }
 }
 
 
@@ -139,13 +141,18 @@ body {
   width: 100%;
   position: absolute;
   left: 0;
-  animation: scan 3s linear infinite;
+  animation: scan-vertical 3s linear infinite;
   z-index: 5;
   pointer-events: none;
 }
 
+@keyframes scan-vertical {
+  from { top: -20px; }
+  to { top: 100%; }
+}
 
-@keyframes scan {
+
+@keyframes scan-translate {
   from { transform: translateY(-100%); }
   to { transform: translateY(100vh); }
 }
@@ -178,16 +185,7 @@ body {
   animation: dash-move 30s linear infinite;
 }
 
-.threat-pulse-strong {
-  animation: threat-ping-strong 1s ease-out infinite;
-  background-color: rgba(239, 68, 68, 0.8) !important;
-  box-shadow: 0 0 20px #ef4444;
-}
-
-@keyframes threat-ping-strong {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(4); opacity: 0; }
-}
+/* Removed redundant threat-pulse-strong definition */
 
 .glow-line {
   filter: drop-shadow(0 0 5px #22d3ee) drop-shadow(0 0 10px #22d3ee);
@@ -255,4 +253,113 @@ body {
 .geofence-circle {
   transition: all 1s ease-in-out;
   stroke: rgba(34, 211, 238, 0.3) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* SOS PULSE MARKER — Concentric Red Rings    */
+/* ═══════════════════════════════════════════ */
+
+@keyframes sos-ping {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes sos-ping-slow {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(5);
+    opacity: 0;
+  }
+}
+
+@keyframes sos-core-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.9), 0 0 50px rgba(239, 68, 68, 0.4);
+    transform: scale(1.15);
+  }
+}
+
+.sos-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  margin-left: -20px;
+  border-radius: 50%;
+  border: 2px solid rgba(239, 68, 68, 0.8);
+  background: rgba(239, 68, 68, 0.15);
+  animation: sos-ping 1.5s ease-out infinite;
+  pointer-events: none;
+}
+
+.sos-pulse-ring-2 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  margin-left: -20px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 100, 100, 0.6);
+  background: transparent;
+  animation: sos-ping-slow 2s ease-out infinite 0.5s;
+  pointer-events: none;
+}
+
+.sos-core {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ff4444, #cc0000);
+  border: 2px solid #ff6666;
+  animation: sos-core-pulse 1s ease-in-out infinite;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+}
+
+.sos-label {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(220, 38, 38, 0.9);
+  color: white;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Intel Brief severity bar fill animation */
+@keyframes severity-fill {
+  from { width: 0%; }
+}
+
+.severity-bar-fill {
+  animation: severity-fill 1s ease-out forwards;
+}
+
+/* Leaflet popup override for SOS markers */
+.custom-pop-red .leaflet-popup-content-wrapper {
+  background: rgba(30, 10, 10, 0.95) !important;
+  border: 1px solid rgba(239, 68, 68, 0.5) !important;
 }

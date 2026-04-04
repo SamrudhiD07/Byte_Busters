@@ -69,18 +69,23 @@ const FeedsView = () => {
                 <>
                   <div className="absolute inset-0 z-0 flex items-center justify-center bg-[#0B0E14]">
                     {/* ONLY PLAY VIDEO FOR TILE 0 */}
-                    {index === 0 ? (
+                    {/* TEMPORARY DISCONNECT: Commented out the active YoloScanner */}
+                    {/* {index === 0 ? (
                       <YoloScanner videoSrc="/video/cctv/14737129_3840_2160_50fps.mp4" />
                     ) : (
-                      /* STANDBY TEXT FOR TILES 1-8 */
                       <span className="text-zinc-700 font-bold tracking-[0.5em] text-2xl uppercase">STANDBY</span>
-                    )}
+                    )} */}
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-zinc-700 font-bold tracking-[0.5em] text-2xl uppercase italic">DISCONNECTED</span>
+                      <span className="text-[10px] font-black text-red-500/50 uppercase tracking-widest leading-none">Awaiting Signal...</span>
+                    </div>
                   </div>
                   
                   <div className="absolute inset-0 z-10 p-3 flex flex-col justify-between pointer-events-none">
                     <div className="flex justify-between items-start pointer-events-none">
                       <div className="flex items-center gap-2">
-                        {drone.status === 'LIVE' && <div className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-pulse shadow-[0_0_8px_#00E5FF]" />}
+                        {/* {drone.status === 'LIVE' && <div className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-pulse shadow-[0_0_8px_#00E5FF]" />} */}
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-500/30" />
                         <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider drop-shadow-md">{drone.id}</span>
                       </div>
                       <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
@@ -91,8 +96,8 @@ const FeedsView = () => {
                     </div>
                     <div className="flex justify-between items-end pointer-events-none">
                       <div className="flex gap-3 text-[9px] font-bold uppercase tracking-tighter text-white/60">
-                        <span className="flex items-center gap-1"><Battery size={12} className={drone.status === 'DOCK' ? 'text-red-500' : 'text-emerald-400'} /> {drone.battery}</span>
-                        <span className="flex items-center gap-1"><Activity size={12} className="text-[#00E5FF]" /> {drone.alt}</span>
+                        <span className="flex items-center gap-1"><Battery size={12} className={'text-zinc-600'} /> {drone.battery}</span>
+                        <span className="flex items-center gap-1"><Activity size={12} className="text-zinc-600" /> {drone.alt}</span>
                       </div>
                       <div className="text-[8px] font-black text-white/20 uppercase italic tracking-[0.2em]">{drone.type}</div>
                     </div>

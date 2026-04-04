@@ -1,0 +1,5 @@
+# AI Engine Video Inputs
+AI_Engine/video_input/
+AI_Engine/*.pt
+AI_Engine/__pycache__/
+*.mp4

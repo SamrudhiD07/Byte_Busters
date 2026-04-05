@@ -326,10 +326,10 @@
       <div id="view-dashboard" class="view">
         <div class="header">
           <div class="greeting" id="welcome-msg">Welcome, User</div>
-          <div>🔔 ☰</div>
+          <div>☰</div>
         </div>
         <div class="location">
-          📍 PUNE, IND •
+          <span id="location-text">📍 LOCATING... • </span>
           <span style="color: var(--accent-green)">LIVE LOCATION ACTIVE</span>
         </div>
 
@@ -393,6 +393,10 @@
             <button class="btn-action" style="flex: 1; background: #333" onclick="document.getElementById('media-upload').click()">📁 UPLOAD</button>
           </div>
           <div id="ai-status"></div>
+          
+          <div id="ai-progress-container" style="display: none; height: 6px; background: #333; margin-top: 15px; border-radius: 10px; overflow: hidden; border: 1px solid #444;">
+              <div id="ai-progress-fill" style="height: 100%; width: 0%; background: var(--accent-green); transition: width 0.1s linear;"></div>
+          </div>
           <button class="btn-action" style="margin-top: 25px; width: 100%; background: #222;" onclick="showView('status')">VIEW STATUS OF DRONE</button>
         </div>
       </div> <div id="view-status" class="view hidden">
@@ -543,6 +547,7 @@
             const welcomeMsg = document.getElementById("welcome-msg");
             if (welcomeMsg) welcomeMsg.innerText = `Welcome, ${name}`;
             window.showView("dashboard");
+            if (window.updateLocationString) window.updateLocationString();
         } else {
             alert("Please enter both Name and Phone Number.");
         }
@@ -581,6 +586,8 @@
 
         navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude: lat, longitude: lng } = position.coords;
+            window.activeIncidentLat = lat;
+            window.activeIncidentLng = lng;
 
             try {
                 const response = await fetch(`${SERVER_URL}/sos_trigger`, {
@@ -592,27 +599,24 @@
                 const data = await response.json();
                 
                 if (data.status === "SUCCESS") {
-                    // ETA at 80 km/h
-                    const speed = 80; 
-                    const distance_km = data.distance_km || 1.2; // Fallback for demo
-                    const etaMinutes = Math.max(1, Math.round((distance_km / speed) * 60));
+                    if (dispatchInfo) dispatchInfo.innerText = "🚨 Incident Pinged! Awaiting your video evidence to authorize drone dispatch.";
 
-                    if (dispatchInfo) dispatchInfo.innerText = `Drone ${data.drone_dispatched} assigned.`;
-
-                    // Update Status View elements
+                    // Hide ETA block since it's not dispatched yet
                     const droneIdEl = document.getElementById("status-drone-id");
                     const distEl = document.getElementById("status-distance");
                     const etaEl = document.getElementById("status-eta");
+                    const labelEl = document.getElementById("status-label");
 
-                    if (droneIdEl) droneIdEl.innerText = data.drone_dispatched;
-                    if (distEl) distEl.innerText = `${distance_km} km`;
-                    if (etaEl) etaEl.innerText = `${etaMinutes} mins`;
+                    if (droneIdEl) droneIdEl.innerText = "PENDING AI AUTHORIZATION";
+                    if (distEl) distEl.innerText = "---";
+                    if (etaEl) etaEl.innerText = "---";
+                    if (labelEl) {
+                        labelEl.innerText = "AWAITING MEDIA";
+                        labelEl.style.color = "#ffb74d";
+                    }
                 }
             } catch (e) {
-                if (dispatchInfo) dispatchInfo.innerText = "Drone Alpha-1 dispatched (Simulation Mode).";
-                // Simulation fallbacks
-                const etaEl = document.getElementById("status-eta");
-                if (etaEl) etaEl.innerText = "2 mins";
+                if (dispatchInfo) dispatchInfo.innerText = "Ping failed due to network error.";
             }
 
             window.showView("awareness");
@@ -639,9 +643,18 @@
                 const file = event.target.files[0];
                 if (!file) return;
 
+                const progressContainer = document.getElementById("ai-progress-container");
+                const progressFill = document.getElementById("ai-progress-fill");
+
                 if (statusText) {
                     statusText.style.display = "block";
                     statusText.style.color = "#ffb74d";
+                }
+                
+                if (progressContainer && progressFill) {
+                    progressContainer.style.display = "block";
+                    progressFill.style.width = "0%";
+                    progressFill.style.transition = "width 0.1s linear";
                 }
 
                 if (file.type.startsWith("image/")) {
@@ -680,7 +693,13 @@
             recorder.onstop = async () => {
                 const compressedBlob = new Blob(chunks, { type: "video/webm" });
                 const statusText = document.getElementById("ai-status");
-                if (statusText) statusText.innerText = "🧠 Analyzing Video Evidence...";
+                const progressFill = document.getElementById("ai-progress-fill");
+                
+                if (statusText) statusText.innerText = "🧠 Analyzing Video Evidence (Cloud AI)...";
+                if (progressFill) {
+                    progressFill.style.transition = "width 5s ease-out"; // Fake a slow pulse for the API call wait
+                    progressFill.style.width = "95%";
+                }
                 processWithGemini(compressedBlob);
             };
 
@@ -689,6 +708,14 @@
             const drawFrame = () => {
                 if (!video.paused && !video.ended) {
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Native accurate progress binding to processing frames!
+                    const progressFill = document.getElementById("ai-progress-fill");
+                    if (progressFill && video.duration) {
+                        const pct = (video.currentTime / video.duration) * 80; // Transcode is 80% of total visual wait time
+                        progressFill.style.width = `${pct}%`;
+                    }
+                    
                     requestAnimationFrame(drawFrame);
                 }
             };
@@ -714,26 +741,70 @@
             const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
             const analysis = JSON.parse(cleanJson);
 
+            const statusText = document.getElementById("ai-status");
+            const progressFill = document.getElementById("ai-progress-fill");
+            const progressContainer = document.getElementById("ai-progress-container");
+            
             if (statusText) {
                 statusText.style.color = "#4ade80";
-                statusText.innerText = `✅ Evidence Logged. Severity: ${analysis.severity}`;
+                statusText.innerText = `✅ Evidence Logged. Severity: ${analysis.severity}. Evaluating Dispatch Route...`;
             }
+            if (progressFill) {
+                progressFill.style.transition = "width 0.3s ease";
+                progressFill.style.width = "100%";
+            }
+            
+            // Give the user a brief second to see the 100% completion before moving to Status View
+            setTimeout(async () => {
+                if (window.activeIncidentLat) analysis.lat = window.activeIncidentLat;
+                if (window.activeIncidentLng) analysis.lng = window.activeIncidentLng;
 
-            await fetch(`${SERVER_URL}/report_evidence`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(analysis),
-            });
+                await fetch(`${SERVER_URL}/report_evidence`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(analysis),
+                });
+                
+                if (progressContainer) progressContainer.style.display = "none";
+                window.showView("status"); // Show pending/active status view
+            }, 1200);
+
         } catch (error) {
             console.error("Gemini Error:", error);
+            const statusText = document.getElementById("ai-status");
+            const progressFill = document.getElementById("ai-progress-fill");
+            
             if (statusText) {
                 statusText.style.color = "#ff4444";
                 statusText.innerText = "❌ AI Analysis Failed.";
             }
+            if (progressFill) progressFill.style.background = "#ff4444";
         }
     }
 
     // --- 6. INITIALIZATION ---
+    window.updateLocationString = () => {
+        const locSpan = document.getElementById("location-text");
+        if (!locSpan) return;
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                    const data = await res.json();
+                    const city = data.address.city || data.address.town || data.address.village || data.address.county || "UNKNOWN";
+                    const country = data.address.country_code ? data.address.country_code.toUpperCase() : "";
+                    locSpan.innerText = `📍 ${city.toUpperCase()}, ${country} • `;
+                } catch (err) {
+                    locSpan.innerText = `📍 LAT ${latitude.toFixed(2)}, LNG ${longitude.toFixed(2)} • `;
+                }
+            }, () => {
+                locSpan.innerText = `📍 LOCATION DENIED • `;
+            });
+        }
+    };
+
     window.onload = () => {
         setupMediaListeners(); // Initialize file input listeners
         const userStr = localStorage.getItem("guardian_user");
@@ -744,6 +815,7 @@
             const welcomeMsg = document.getElementById("welcome-msg");
             if (welcomeMsg) welcomeMsg.innerText = `Welcome, ${user.name}`;
             window.showView("dashboard");
+            window.updateLocationString();
         }
     };
 </script>

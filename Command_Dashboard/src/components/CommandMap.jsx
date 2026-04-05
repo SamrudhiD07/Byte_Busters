@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Tooltip, useM
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import TacticalPanel from './TacticalPanel';
+import FlightAnimationLayer from './FlightAnimationLayer';
+import { useSystemState } from '../context/SystemContext';
 import { Crosshair, Grid, Layers, Maximize2, Phone, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -92,8 +94,10 @@ const MapController = ({ center, zoom, isTactical }) => {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(center, zoom);
-  }, [center, zoom, map]);
+    if (center && center[0] !== undefined && center[1] !== undefined) {
+      map.setView(center, zoom);
+    }
+  }, [center?.[0], center?.[1], zoom, map]);
 
   // CRITICAL: Fix for Leaflet Resize Bug
   useEffect(() => {
@@ -108,8 +112,9 @@ const MapController = ({ center, zoom, isTactical }) => {
   return null;
 };
 
-const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
+const CommandMap = ({ mapState, isTactical = false, onDeployClick, children }) => {
   const { center, zoom, markers, paths } = mapState;
+  const { activeMissions } = useSystemState();
 
   const [mapTheme, setMapTheme] = useState('street');
 
@@ -119,10 +124,7 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
       {/* 1. GLOBAL MAP OVERLAYS (z-[1000]) */}
       {!isTactical && (
         <>
-          <div className="absolute top-6 left-24 flex items-center gap-2 text-white/90 z-[1000] pointer-events-none">
-            <Grid className="w-5 h-5 text-cyan-400" />
-            <span className="text-xl font-bold tracking-tight">City View</span>
-          </div>
+          {/* City View Header Removed Per User Request */}
 
           {/* Bottom Left Filters Widget 
           <div className="absolute bottom-6 left-24 z-[1000] flex flex-col items-center gap-2 pointer-events-auto">
@@ -187,8 +189,22 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
         />
 
         <MapController center={center} zoom={zoom} isTactical={isTactical} />
+        
+        {activeMissions && activeMissions.map(m => (
+          <FlightAnimationLayer key={m.id} mission={m} />
+        ))}
 
-        {markers.map((marker) => (
+        {markers.map((marker) => {
+          // If in Tactical Mini-Map mode, hide all standby hubs to only show flying drone
+          if (isTactical && marker.type === 'HUB') return null;
+
+          // If standard dashboard map, hide the original hub base of the active drone
+          if (!isTactical && marker.type === 'HUB' && activeMissions && activeMissions.length > 0) {
+            let isActiveHub = activeMissions.some(m => m.droneId && m.droneId.includes(marker.label));
+            if (isActiveHub) return null;
+          }
+
+          return (
           <Marker
             key={marker.id}
             position={marker.pos}
@@ -257,13 +273,11 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick }) => {
                   </button>
                 </div>
               </Popup>
-            ) : (
-              <Tooltip permanent direction="right" offset={[15, 0]} className="tactical-tooltip">
-                <span className="tabular-nums">{marker.label}</span>
-              </Tooltip>
-            )}
+            ) : null}
           </Marker>
-        ))}
+          );
+        })}
+        {children}
       </MapContainer>
 
       <div className="absolute inset-0 pointer-events-none z-[1] opacity-5 tactical-grid" />

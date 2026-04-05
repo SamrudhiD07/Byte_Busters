@@ -1,13 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
-import { 
-  MapContainer, 
-  TileLayer, 
-  Marker, 
-  useMap 
-} from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import DroneSimulationMap from './DroneSimulationMap';
+import { useMap } from 'react-leaflet';
+import CommandMap from './CommandMap';
 import { 
   Video, Grid, Crosshair, Users, Layers, MoreHorizontal, 
   ChevronDown, Phone, Shield, Radio, Signal, Battery, 
@@ -15,6 +9,7 @@ import {
   Settings, Minus, Map as MapIcon, Camera, Disc, Thermometer,
   Wind, Cloud
 } from 'lucide-react';
+import { useSystemState } from '../context/SystemContext';
 
 // 1. MiniMap Controls Component
 const MiniMapControls = ({ toggleExpand, isExpanded }) => {
@@ -75,8 +70,36 @@ const MiniMapControls = ({ toggleExpand, isExpanded }) => {
 };
 
 const LiveDroneHUD = ({ onBack, caseId }) => {
+  const { mapState, alertLog, telemetry } = useSystemState();
+  
+  const isDirectObject = typeof caseId === 'object' && caseId !== null;
+  
+  let targetLat = 18.5204;
+  let targetLng = 73.8567;
+  let assignedUnit = 'Swargate Drone';
+
+  if (isDirectObject) {
+     targetLat = caseId.lat;
+     targetLng = caseId.lng;
+     assignedUnit = caseId.droneId;
+  } else {
+     const alert = alertLog.find(a => a.id === caseId) || alertLog[0];
+     if (alert) {
+        targetLat = alert.location ? alert.location[0] : 18.5204;
+        targetLng = alert.location ? alert.location[1] : 73.8567;
+        assignedUnit = alert.assignedUnit || 'Swargate Drone';
+     }
+  }
+  
+  let tempStartPos = [18.5018, 73.8636]; 
+  if (assignedUnit.includes('Shivaji')) tempStartPos = [18.5314, 73.8446];
+  else if (assignedUnit.includes('Hadapsar')) tempStartPos = [18.5089, 73.9259];
+  else if (assignedUnit.includes('Kothrud')) tempStartPos = [18.5074, 73.8077];
+  
+  const tempEndPos = [targetLat, targetLng]; 
+
   const [isAutopilot, setIsAutopilot] = useState(true);
-  const [isDeployed, setIsDeployed] = useState(false); // New deployment state
+  const [isDeployed, setIsDeployed] = useState(true); // START DEPLOYED!
   const [activeCamera, setActiveCamera] = useState('gimbal');
   const [activePayload, setActivePayload] = useState('L');
   const [isMicLive, setIsMicLive] = useState(false);
@@ -88,14 +111,6 @@ const LiveDroneHUD = ({ onBack, caseId }) => {
   const peerInstance = useRef(null);
   
   // New States for Telemetry and Media
-  const [telemetry, setTelemetry] = useState({ 
-    speed: 5, 
-    alt: 200, 
-    uptime: '00:12:54', 
-    battery: 64, 
-    eta: 'Calculating...', 
-    signal: 28 
-  });
   const [isRecording, setIsRecording] = useState(false);
   const [flash, setFlash] = useState(false);
 
@@ -110,7 +125,21 @@ const LiveDroneHUD = ({ onBack, caseId }) => {
   // 2. Bulletproof PeerJS for React Strict Mode
   useEffect(() => {
     if (!peerInstance.current) {
-      const peer = new Peer('skynetra-hub-01');
+      const peerOptions = {
+        host: window.location.hostname,
+        port: 9000,
+        path: '/peerjs',
+        secure: false,
+        debug: 2,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      };
+
+      const peer = new Peer('skynetra-hub-01', peerOptions);
       peerInstance.current = peer;
       
       peer.on('open', (id) => {
@@ -144,14 +173,8 @@ const LiveDroneHUD = ({ onBack, caseId }) => {
   }, []);
 
   // Added: Function to handle telemetry updates from the child map
-  const handleTelemetryUpdate = (data) => {
-    setTelemetry((prev) => ({
-      ...prev,
-      speed: data.speed,
-      alt: data.alt,
-      eta: data.eta || prev.eta,
-    }));
-  };
+  // Function logic deprecated, relying on SystemContext global telemetry instead.
+  const handleTelemetryUpdate = (data) => {};
 
   const toggleRecording = () => { 
     setIsRecording(!isRecording); 
@@ -208,17 +231,17 @@ const LiveDroneHUD = ({ onBack, caseId }) => {
         {/* Top Center: Telemetry & Weather Pills */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-40">
           <div className="flex items-center gap-4 bg-black/80 backdrop-blur-md rounded-md border border-white/10 px-5 py-2.5 text-[11px] font-bold tabular-nums shadow-2xl transition-all">
-            <div className="flex items-center gap-1.5"><Navigation className="w-3.5 h-3.5 text-zinc-500" /> S: <span className="text-cyan-400">{telemetry.speed} mph</span></div>
+            <div className="flex items-center gap-1.5"><Navigation className="w-3.5 h-3.5 text-zinc-500" /> S: <span className="text-cyan-400">{telemetry?.speed || '0 kmph'}</span></div>
             <div className="h-3 w-px bg-white/10" />
-            <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-zinc-500" /> H: <span className="text-cyan-400">{telemetry.alt} ft</span></div>
+            <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-zinc-500" /> H: <span className="text-cyan-400">{telemetry?.alt || 200} ft</span></div>
             <div className="h-3 w-px bg-white/10" />
-            <div className="flex items-center gap-1.5 text-zinc-500 tabular-nums uppercase tracking-widest text-[9px]">{currentTime}</div>
+            <div className="flex items-center gap-1.5 tabular-nums uppercase tracking-widest text-[9px] text-zinc-500">{currentTime}</div>
             <div className="h-3 w-px bg-white/10" />
-            <div className="flex items-center gap-1.5"><Battery className={`w-3.5 h-3.5 ${telemetry.battery < 20 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`} /> <span className="text-white">{telemetry.battery}%</span></div>
+            <div className="flex items-center gap-1.5"><Battery className={`w-3.5 h-3.5 ${telemetry?.battery < 20 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`} /> <span className="text-white">{telemetry?.battery || 64}%</span></div>
             <div className="h-3 w-px bg-white/10" />
-            <div className="flex items-center gap-1.5 text-zinc-500 text-[10px]">ETA {telemetry.eta}</div>
+            <div className="flex items-center gap-1.5 text-zinc-500 text-[10px]">ETA {telemetry?.eta || 'Standby'}</div>
             <div className="h-3 w-px bg-white/10" />
-            <div className="flex items-center gap-1.5"><Signal className="w-3.5 h-3.5 text-cyan-500" /> <span className="text-white">{telemetry.signal}</span></div>
+            <div className="flex items-center gap-1.5"><Signal className="w-3.5 h-3.5 text-cyan-500" /> <span className="text-white">{telemetry?.signal || 28}</span></div>
           </div>
 
           <div className="bg-black/80 backdrop-blur-md rounded-md border border-white/10 px-4 py-2.5 text-[11px] font-bold flex items-center gap-3 cursor-pointer">
@@ -251,33 +274,13 @@ const LiveDroneHUD = ({ onBack, caseId }) => {
           </div>
         </div>
 
-        {/* 3. FUNCTIONAL PIP MAP (Top Right, z-40) */}
         <div className={`absolute top-20 right-6 z-40 bg-black/80 backdrop-blur-md rounded-xl overflow-hidden border border-white/10 transition-all duration-300 group ${isMapExpanded ? 'w-[600px] h-[400px]' : 'w-80 h-64'}`}>
-          <MapContainer 
-            center={[18.4600, 73.8500]} 
-            zoom={13} 
-            zoomControl={false}
-            style={{ height: '100%', width: '100%', zIndex: 0 }}
-          >
-            <TileLayer
-              attribution='&copy; Google Maps'
-              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-              maxZoom={20}
-            />
-            
-            <DroneSimulationMap 
-              onTelemetryUpdate={handleTelemetryUpdate} 
-              isDeployed={isDeployed} 
-            />
-
+          <CommandMap mapState={{...mapState, zoom: 12, center: tempStartPos}} isTactical={true}>
             <MiniMapControls 
               isExpanded={isMapExpanded} 
               toggleExpand={() => setIsMapExpanded(!isMapExpanded)} 
             />
-
-            {/* Tactical Grid Overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-10 z-[400] tactical-grid" />
-          </MapContainer>
+          </CommandMap>
         </div>
 
         {/* 4. QUICK ACTION TOOLBAR (Left, z-40) */}

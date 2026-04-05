@@ -26,7 +26,20 @@ const MobileDroneNode = () => {
     socketRef.current.on('connect', () => console.log('Socket Connected'));
 
     // Initialize WebRTC Peer
-    const peer = new Peer();
+    const peerOptions = {
+      host: window.location.hostname,
+      port: 9000,
+      path: '/peerjs',
+      secure: false,
+      debug: 2,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    };
+    const peer = new Peer(undefined, peerOptions);
     peer.on('open', (id) => {
       console.log('Drone Peer registered with ID:', id);
     });

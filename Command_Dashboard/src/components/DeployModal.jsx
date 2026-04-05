@@ -90,48 +90,30 @@ const DeployModal = ({ isOpen, onClose, onDeploy, emergencyData, onStandby }) =>
               </button>
             </div>
 
-            {/* Search Bar */}
+            {/* Auto-Assigned Drone Info */}
             <div className="px-6 py-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <input 
-                  type="text" 
-                  placeholder="Search for drones..." 
-                  className="w-full bg-[#1a1a1d] border border-white/5 rounded-lg py-2.5 pl-10 pr-4 text-sm font-bold focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-zinc-600"
-                />
-              </div>
-            </div>
-
-            {/* Drone List */}
-            <div className="px-6 max-h-[240px] overflow-y-auto custom-scrollbar">
                <div className="space-y-3 pb-4">
-                 {sortedDrones.map((drone) => {
-                   const isSelected = drone.id === selectedDroneId;
+                 {[currentSelected].map((drone) => {
                    const isSuggested = drone.id === suggestedDroneId;
                    
                    return (
                     <div 
                       key={drone.id}
-                      onClick={() => setSelectedDroneId(drone.id)}
-                      className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
-                        isSelected 
-                          ? (isSOS ? 'bg-red-500/5 border-red-500/30' : 'bg-cyan-500/5 border-cyan-500/30 shadow-[0_0_20px_rgba(0,229,255,0.1)]')
-                          : 'bg-transparent border-white/5 hover:border-white/10'
+                      className={`group flex items-center gap-4 p-4 rounded-xl border ${
+                        isSOS ? 'bg-red-500/5 border-red-500/30' : 'bg-cyan-500/5 border-cyan-500/30 shadow-[0_0_20px_rgba(0,229,255,0.1)]'
                       }`}
                     >
                       <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        isSelected 
-                          ? (isSOS ? 'border-red-500' : 'border-cyan-500')
-                          : 'border-zinc-700 group-hover:border-zinc-500'
+                        isSOS ? 'border-red-500' : 'border-cyan-500'
                       }`}>
-                         {isSelected && <div className={`w-2 h-2 rounded-full ${isSOS ? 'bg-red-500 shadow-[0_0_6px_#ef4444]' : 'bg-cyan-500'}`} />}
+                         <div className={`w-2 h-2 rounded-full ${isSOS ? 'bg-red-500 shadow-[0_0_6px_#ef4444]' : 'bg-cyan-500'}`} />
                       </div>
                       
                       <div className="flex-1">
                         <div className="text-xs font-black text-white mb-0.5">{drone.name}</div>
                         <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">ID: {drone.id}</div>
                         <div className={`text-[10px] font-black mt-1 ${isSOS && isSuggested ? 'text-red-400' : 'text-cyan-400'}`}>
-                          {isSOS && isSuggested ? `${emergencyData.distance} km • NEAREST` : drone.dist}
+                          {isSOS && isSuggested ? `${emergencyData.distance} km • AUTO-ASSIGNED NEAREST` : drone.dist}
                         </div>
                       </div>
 

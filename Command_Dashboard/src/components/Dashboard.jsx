@@ -2,7 +2,7 @@ import React from 'react';
 import { toast } from 'react-hot-toast';
 import { 
   Video, Grid, Crosshair, Users, Layers, MoreHorizontal, 
-  ChevronDown, Phone, Shield, Radio, Signal, Battery, Navigation, Plus, Camera
+  ChevronDown, Phone, Shield, Radio, Signal, Battery, Navigation, Plus, Camera, FileText
 } from 'lucide-react';
 import { useSystemState } from '../context/SystemContext';
 import CommandMap from './CommandMap';
@@ -12,6 +12,7 @@ import MissionHUD from './MissionHUD';
 import DeployModal from './DeployModal';
 import FeedsView from './FeedsView';
 import IntelBrief from './IntelBrief';
+import LogsAndReports from './LogsAndReports';
 import { Peer } from 'peerjs';
 
 const Dashboard = () => {
@@ -19,11 +20,12 @@ const Dashboard = () => {
     mapState, fleetStatus, telemetry, alertLog, deployDrone, 
     setCurrentActiveDroneSource, 
     sosEmergency, setSosEmergency,
-    intelBrief, setIntelBrief
+    intelBrief, setIntelBrief,
+    activeMission, setActiveMission,
+    activeMissions, setActiveMissions
   } = useSystemState();
   
   const [peerStatus, setPeerStatus] = React.useState('OFFLINE');
-  const [activeMission, setActiveMission] = React.useState(null); 
   const [activeView, setActiveView] = React.useState('dashboard'); 
   const [isDeployModalOpen, setIsDeployModalOpen] = React.useState(false);
   const [pendingAlertId, setPendingAlertId] = React.useState(null);
@@ -53,20 +55,55 @@ const Dashboard = () => {
     setActiveMission('MANUAL_FEED');
   };
 
-  // Filter for high-priority alerts that need manual approval
-  const pendingAlerts = alertLog.filter(a => a.status === 'PENDING_AUTHORITY');
+  // Removed redundant pending alert filter logic
 
-  // ── AUTO-OPEN DEPLOY MODAL ON SOS ──
+  // ── AUTO-DEPLOY ON SOS ──
   React.useEffect(() => {
     if (sosEmergency) {
-      setIsDeployModalOpen(true);
+      if (sosEmergency.droneId === "NO DRONES AVAILABLE") {
+        toast.error(`CRITICAL: No drones available! All units are depleted or engaged. Manual intervention required.`, { 
+          duration: 6000,
+          style: { background: '#7f1d1d', color: '#fff', border: '1px solid #ef4444', minWidth: '400px' }
+        });
+      } else {
+        toast.success(`AUTO-DEPLOYING ${sosEmergency.droneId} to incident...`, { duration: 4000 });
+        
+        // Auto Deploy instantly without relying on stale alertLog state!
+        const newM = {
+          id: `SOS_TRIGGERED_${Date.now()}`,
+          lat: sosEmergency.lat,
+          lng: sosEmergency.lng,
+          droneId: sosEmergency.droneId,
+          startTime: Date.now()
+        };
+        setActiveMission(newM.id);
+        setActiveMissions(prev => [...prev, newM]);
+      }
+      
+      setSosEmergency(null);
+      setIsDeployModalOpen(false);
     }
   }, [sosEmergency]);
 
   // Maintain PeerJS logic for backend connectivity
   React.useEffect(() => {
-    const peer = new Peer('skynetra-hub-01');
+    const peerOptions = {
+      host: window.location.hostname,
+      port: 9000,
+      path: '/peerjs',
+      secure: false,
+      debug: 2,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    };
+
+    const peer = new Peer('skynetra-hub-01', peerOptions);
     peer.on('open', () => setPeerStatus('ONLINE'));
+    peer.on('error', (err) => console.warn('PeerJS hub error:', err));
     peer.on('call', (call) => {
       call.answer();
       call.on('stream', (stream) => {
@@ -82,8 +119,15 @@ const Dashboard = () => {
   const handleDeploy = (caseId, droneId = 'SN_DRONE01') => {
     // Update drone target in system context if needed
     deployDrone(caseId, droneId); 
+    
+    // Convert string generic caseId into robust Object fallback if missing
     setActiveMission(caseId);
-    setActiveView('drone');
+    setActiveMissions(prev => [...prev, { 
+      id: caseId, 
+      droneId: droneId,
+      startTime: Date.now() 
+    }]);
+    // Don't auto-jump! Watch it on dashboard map
   };
 
   const handleEndMission = () => {
@@ -139,7 +183,7 @@ const Dashboard = () => {
           <SidebarIcon 
             icon={Grid} 
             active={activeView === 'dashboard'} 
-            onClick={() => { setActiveView('dashboard'); setActiveMission(null); }} 
+            onClick={() => setActiveView('dashboard')} 
           />
           <SidebarIcon 
             icon={Crosshair} 
@@ -163,6 +207,7 @@ const Dashboard = () => {
 
           <SidebarIcon icon={Users} active={activeView === 'team'} onClick={() => setActiveView('team')} />
           <SidebarIcon icon={Layers} active={activeView === 'layers'} onClick={() => setActiveView('layers')} />
+          <SidebarIcon icon={FileText} active={activeView === 'logs'} onClick={() => setActiveView('logs')} />
         </nav>
 
         <div className="mt-auto">
@@ -209,45 +254,9 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-[#18181b]/70 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all hover:bg-[#18181b]/80">
-                <div className="text-[11px] font-bold text-red-500 mb-2 font-black uppercase tracking-wider flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_10px_#ef4444] ${pendingAlerts.length > 0 ? 'animate-pulse' : 'opacity-20'}`} />
-                  Active Service Calls ({pendingAlerts.length})
-                </div>
-                
-                {pendingAlerts.length > 0 ? (
-                  pendingAlerts.map(alert => (
-                    <div key={alert.id} className="border border-red-500/40 bg-red-950/20 rounded-lg p-3 group transition-all hover:border-red-500/60 hover:bg-red-950/30 mb-2 animate-in fade-in slide-in-from-right-4">
-                      <div className="text-[10px] font-black text-red-400 mb-1 tracking-widest uppercase">CASE ID: {alert.id.slice(-8)}</div>
-                      <div className="text-[9px] font-bold text-white/70 mb-3 uppercase">{alert.object} DETECTED</div>
-                      <button 
-                        onClick={() => {
-                          setPendingAlertId(alert.id);
-                          setIsDeployModalOpen(true);
-                        }}
-                        className="bg-[#00E5FF] hover:bg-cyan-400 text-black text-[10px] font-black w-full rounded-md py-2 transition-all uppercase tracking-widest shadow-[0_0_15px_rgba(0,229,255,0.3)] active:scale-95"
-                      >
-                        Deploy Drone
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-[10px] font-bold text-white/20 text-center py-4 uppercase tracking-tighter">
-                    No active anomalies detected
-                  </div>
-                )}
-              </div>
             </div>
 
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-              <button 
-                onClick={() => setIsDeployModalOpen(true)}
-                className="bg-[#00e5ff] hover:bg-cyan-400 text-black px-6 py-2.5 rounded-full font-bold shadow-[0_0_15px_rgba(0,229,255,0.4)] transition-all flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="text-sm">New Deployment</span>
-              </button>
-            </div>
+            {/* New Deployment Button Removed Per User Request */}
           </div>
         )}
 
@@ -257,6 +266,12 @@ const Dashboard = () => {
                onBack={() => setActiveView('dashboard')}
                caseId={activeMission || 'Manual Feed'} 
             />
+          </div>
+        )}
+
+        {activeView === 'logs' && (
+          <div className="absolute inset-0 z-20 animate-in fade-in">
+            <LogsAndReports />
           </div>
         )}
         

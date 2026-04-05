@@ -17,10 +17,13 @@ export const SystemProvider = ({ children }) => {
 
   const [radarNodes, setRadarNodes] = useState([]);
   const [mapState, setMapState] = useState({
-    center: [18.4600, 73.8500],
-    zoom: 15,
+    center: [18.5150, 73.8600],
+    zoom: 12,
     markers: [
-      { id: 'HUB_01', pos: [18.4600, 73.8500], type: 'HUB', label: '[COMMAND_HUB]' }
+      { id: 'HUB_SWAR', pos: [18.5018, 73.8636], type: 'HUB', label: 'Swargate' },
+      { id: 'HUB_SHIV', pos: [18.5314, 73.8446], type: 'HUB', label: 'Shivaji Nagar' },
+      { id: 'HUB_HADA', pos: [18.5089, 73.9259], type: 'HUB', label: 'Hadapsar' },
+      { id: 'HUB_KOTH', pos: [18.5074, 73.8077], type: 'HUB', label: 'Kothrud' }
     ],
     paths: []
   });
@@ -35,12 +38,21 @@ export const SystemProvider = ({ children }) => {
     networkBandwidth: '0.00 Mbps',
     storageIOPS: '0.0 %',
     thermalState: 'AWAITING_LINK',
-    encryption: 'LINKING...'
+    encryption: 'LINKING...',
+    speed: '0 kmph',
+    alt: 200,
+    battery: 64,
+    eta: 'Standby',
+    signal: 28
   });
   const [socket, setSocket] = useState(null);
 
   // ── NEW: SOS Emergency State (for auto-opening DeployModal) ──
   const [sosEmergency, setSosEmergency] = useState(null);
+
+  // ── NEW: Global Active Mission State ──
+  const [activeMission, setActiveMission] = useState(null);
+  const [activeMissions, setActiveMissions] = useState([]);
 
   // ── NEW: Gemini Intelligence Brief State ──
   const [intelBrief, setIntelBrief] = useState(null);
@@ -72,9 +84,10 @@ export const SystemProvider = ({ children }) => {
           confidence: data.confidence || 0.92,
           type: 'CRITICAL',
           location: data.location || [18.4550, 73.8450],
+          description: data.description || 'AI Intelligence stream pending...',
           requiresDeployment: true,
           status: 'PENDING_AUTHORITY'
-        }, ...prev].slice(0, 10));
+        }, ...prev].slice(0, 50));
       });
 
       socket.on('vision_update', (data) => {
@@ -135,6 +148,7 @@ export const SystemProvider = ({ children }) => {
           playBeep(880, audioCtx.currentTime + 0.2, 0.15);
           playBeep(1200, audioCtx.currentTime + 0.4, 0.3);
         } catch (e) { /* Audio not critical */ }
+
       });
 
       // ── 2. The Human-in-the-Loop: Trigger Deploy Prompt ──
@@ -168,6 +182,15 @@ export const SystemProvider = ({ children }) => {
         });
       });
 
+      // ── 5. Real-Time Fleet Telemetry Sync ──
+      socket.on('fleet_update', (data) => {
+        setFleetStatus([
+          { id: 'ACTIVE', status: 'Active', count: data.active, color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+          { id: 'CHARGING', status: 'Charging', count: data.charging, color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
+          { id: 'STANDBY', status: 'Ready', count: data.ready, color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' }
+        ]);
+      });
+
       return () => {
         socket.off('connect');
         socket.off('disconnect');
@@ -176,19 +199,13 @@ export const SystemProvider = ({ children }) => {
         socket.off('ui_pulse_location');
         socket.off('trigger_deploy_prompt');
         socket.off('update_intel_brief');
+        socket.off('fleet_update');
       };
     }
   }, [socket]);
 
   const deployDrone = (alertId, droneId = 'Alpha-1') => {
     const targetAlert = alertLog.find(a => a.id === alertId);
-    
-    // Update Fleet Status Counts
-    setFleetStatus(prev => prev.map(cat => {
-      if (cat.id === 'STANDBY' && cat.count > 0) return { ...cat, count: cat.count - 1 };
-      if (cat.id === 'ACTIVE') return { ...cat, count: cat.count + 1 };
-      return cat;
-    }));
 
     // Update Alert Log Status
     setAlertLog(prev => prev.map(a => 
@@ -257,15 +274,21 @@ export const SystemProvider = ({ children }) => {
     mapState,
     setMapState,
     alertLog,
+    setAlertLog,
     fleetStatus,
     telemetry,
+    setTelemetry,
     connectSystem,
     disconnectSystem,
     deployDrone,
     sosEmergency,
     setSosEmergency,
     intelBrief,
-    setIntelBrief
+    setIntelBrief,
+    activeMission,
+    setActiveMission,
+    activeMissions,
+    setActiveMissions
   };
 
   return (

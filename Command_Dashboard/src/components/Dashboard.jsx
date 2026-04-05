@@ -22,10 +22,11 @@ const Dashboard = () => {
     sosEmergency, setSosEmergency,
     intelBrief, setIntelBrief,
     activeMission, setActiveMission,
-    activeMissions, setActiveMissions
+    activeMissions, setActiveMissions,
+    peerStatus, setPeerStatus,
+    setUplinkStream
   } = useSystemState();
 
-  const [peerStatus, setPeerStatus] = React.useState('OFFLINE');
   const [activeView, setActiveView] = React.useState('dashboard');
   const [isDeployModalOpen, setIsDeployModalOpen] = React.useState(false);
   const [pendingAlertId, setPendingAlertId] = React.useState(null);
@@ -85,14 +86,30 @@ const Dashboard = () => {
     }
   }, [sosEmergency]);
 
-  // Maintain PeerJS logic for backend connectivity
-  React.useEffect(() => {
+  const peerInstance = React.useRef(null);
+
+  const initPeer = () => {
+    // 1. Cleanup existing instance if any
+    if (peerInstance.current) {
+      peerInstance.current.destroy();
+      peerInstance.current = null;
+    }
+
+    setPeerStatus('LINKING');
+    console.log(`📡 Initializing Tactical Hub on ${window.location.hostname}...`);
+
+    // DYNAMIC HOST: Laptop uses localhost/192.168.137.1, Phone uses 192.168.137.1
+    const serverHost = window.location.hostname;
+    
+    // Assign global reconnect for HUD button
+    window.reconnectHub = initPeer;
+
     const peerOptions = {
-      host: window.location.hostname,
+      host: serverHost,
       port: 9000,
       path: '/peerjs',
       secure: false,
-      debug: 2,
+      debug: 1,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -101,19 +118,53 @@ const Dashboard = () => {
       }
     };
 
-    const peer = new Peer('skynetra-hub-01', peerOptions);
-    peer.on('open', () => setPeerStatus('ONLINE'));
-    peer.on('error', (err) => console.warn('PeerJS hub error:', err));
-    peer.on('call', (call) => {
-      call.answer();
-      call.on('stream', (stream) => {
-        setIsConnected(true);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream;
+    try {
+      const peer = new Peer('skynetra-hub-01', peerOptions);
+      peerInstance.current = peer;
+
+      peer.on('open', () => {
+        console.log('✅ Tactical Hub is ONLINE');
+        setPeerStatus('ONLINE');
+      });
+
+      peer.on('error', (err) => {
+        if (err.type === 'unavailable-id') {
+           console.error('❌ Hub ID skynetra-hub-01 is BUSY (another tab is likely open).');
+           setPeerStatus('BUSY');
+        } else {
+           console.error('❌ Hub PeerJS Error:', err.type, err);
+           setPeerStatus('ERROR');
         }
       });
-    });
-    return () => peer.destroy();
+
+      peer.on('call', (call) => {
+        console.log('⚠️ Incoming Tactical Feed Detected...');
+        setActiveView('drone');
+        setActiveMission('MOBILE_FEED');
+        
+        call.answer();
+        
+        call.on('stream', (remoteStream) => {
+          console.log('✅ Tactical stream attached!');
+          setUplinkStream(remoteStream);
+        });
+
+        call.on('close', () => {
+          console.log('Transmission closed by peer.');
+          setUplinkStream(null);
+        });
+      });
+    } catch (e) {
+      console.error('Initial Peer creation failed:', e);
+      setPeerStatus('ERROR');
+    }
+  };
+
+  React.useEffect(() => {
+    initPeer();
+    return () => {
+      if (peerInstance.current) peerInstance.current.destroy();
+    };
   }, []);
 
   const handleDeploy = (caseId, droneId = 'SN_DRONE01') => {

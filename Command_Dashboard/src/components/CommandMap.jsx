@@ -188,6 +188,23 @@ const CommandMap = ({ mapState, isTactical = false, onDeployClick, children }) =
           attribution={mapStyles[mapTheme].attribution}
         />
 
+        {/* GREEN HILL No-Fly Zone Visualization */}
+        <Circle
+          center={[18.524344, 73.800499]}
+          radius={1200}
+          pathOptions={{
+            color: '#ef4444',
+            fillColor: '#ef4444',
+            fillOpacity: 0.1,
+            weight: 2,
+            dashArray: '5, 10'
+          }}
+        >
+          <Tooltip permanent direction="top" className="bg-transparent border-none shadow-none text-[10px] font-bold text-red-500 uppercase tracking-tighter">
+            NO-FLY ZONE: GREEN HILL
+          </Tooltip>
+        </Circle>
+
         <MapController center={center} zoom={zoom} isTactical={isTactical} />
 
         {activeMissions && activeMissions.map(m => (

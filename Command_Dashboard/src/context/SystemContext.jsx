@@ -78,12 +78,14 @@ export const SystemProvider = ({ children }) => {
         });
 
         setAlertLog(prev => [{
-          id: `ALERT-${Date.now()}`,
+          id: data.id || `ALERT-${Date.now()}`,
           timestamp: new Date().toLocaleTimeString('en-GB', { hour12: false }),
           object: data.label || 'CCTV_ANOMALY',
           confidence: data.confidence || 0.92,
           type: 'CRITICAL',
           location: data.location || [18.4550, 73.8450],
+          assignedUnit: data.assignedUnit || null,
+          distance: data.distance || null,
           description: data.description || 'AI Intelligence stream pending...',
           requiresDeployment: true,
           status: 'PENDING_AUTHORITY'
@@ -115,7 +117,7 @@ export const SystemProvider = ({ children }) => {
           style: { background: '#7f1d1d', color: '#fff', border: '1px solid #ef4444' }
         });
 
-        const sosMarkerId = `SOS_${Date.now()}`;
+        const sosMarkerId = data.id || `SOS_${Date.now()}`;
         setMapState(prev => ({
           ...prev,
           markers: [
@@ -204,7 +206,7 @@ export const SystemProvider = ({ children }) => {
     }
   }, [socket]);
 
-  const deployDrone = (alertId, droneId = 'Alpha-1') => {
+  const deployDrone = (alertId, droneId = 'Swargate Drone') => {
     const targetAlert = alertLog.find(a => a.id === alertId);
 
     // Update Alert Log Status
@@ -214,12 +216,17 @@ export const SystemProvider = ({ children }) => {
 
     // Update Map
     if (targetAlert) {
+      let stationPos = [18.5018, 73.8636]; // Default Swargate
+      if (droneId.includes('Shivaji')) stationPos = [18.5314, 73.8446];
+      else if (droneId.includes('Hadapsar')) stationPos = [18.5089, 73.9259];
+      else if (droneId.includes('Kothrud')) stationPos = [18.5074, 73.8077];
+
       setMapState(prev => ({
         ...prev,
         markers: prev.markers.map(m => 
           m.id === 'AERO_01' ? { ...m, pos: targetAlert.location, label: `[${droneId}: EN_ROUTE]` } : m
         ),
-        paths: [[[18.4600, 73.8500], targetAlert.location]]
+        paths: [[stationPos, targetAlert.location]]
       }));
     }
 

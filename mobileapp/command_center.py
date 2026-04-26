@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 
 # --- 1. INITIALIZE FLASK APP ---
 app = Flask(__name__)
-CORS(app)
+# Permissive CORS for local mobile app access
+CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- 2. LOAD ENVIRONMENT VARIABLES ---
@@ -21,7 +22,7 @@ load_dotenv()
 # --- 3. AI CONFIGURATION ---
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    print("⚠️ WARNING: GEMINI_API_KEY not found in .env file!")
+    print("WARNING: GEMINI_API_KEY not found in .env file!")
     
 client = genai.Client(api_key=api_key) if api_key else None
 
@@ -91,25 +92,25 @@ def check_detour_distance(lat1, lon1, lat2, lon2):
             return base_dist * 5.0 
     return base_dist
 
-def dispatch_drone(user_lat, user_lng, incoming_severity):
+def get_nearest_drone(user_lat, user_lng):
     min_dist, best_drone = float('inf'), None
     for drone in DRONE_FLEET:
         if drone['battery'] <= 25:
             continue # Battery Constraint
         
-        # Pre-emption Logic Disabled for testing -> Always available for UI demonstrations
-        is_available = True
-        is_preemptable = False
-        
-        if is_available or is_preemptable:
-            dist = check_detour_distance(user_lat, user_lng, drone['lat'], drone['lng'])
-            if dist < min_dist:
-                min_dist, best_drone = dist, drone
+        # Check distance with detour logic (No-Fly Zones)
+        dist = check_detour_distance(user_lat, user_lng, drone['lat'], drone['lng'])
+        if dist < min_dist:
+            min_dist, best_drone = dist, drone
+    return best_drone, min_dist
+
+def dispatch_drone(user_lat, user_lng, incoming_severity):
+    best_drone, dist = get_nearest_drone(user_lat, user_lng)
                 
     if best_drone:
         best_drone['status'] = 'DISPATCHED'
         best_drone['current_severity'] = incoming_severity
-    return best_drone, min_dist
+    return best_drone, dist
 
 # Drone background simulation thread
 def drone_simulation_loop():
@@ -152,11 +153,11 @@ threading.Thread(target=drone_simulation_loop, daemon=True).start()
 # --- WebSocket Events (Optional but good for debugging) ---
 @socketio.on('connect')
 def handle_connect():
-    print("✅ Dashboard connected to Python SocketIO!")
+    print("[+] Dashboard connected to Python SocketIO!")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print("❌ Dashboard disconnected")
+    print("[-] Dashboard disconnected")
 
 # --- 6. ENDPOINT A: MOBILE APP SOS TRIGGER ---
 @app.route('/sos_trigger', methods=['POST'])
@@ -169,33 +170,46 @@ def handle_sos():
     
     # We do NOT dispatch drones immediately here!
     # Await Gemini video proof.
-    print(f"📡 SOS Alert received from mobile at [{user_lat}, {user_lng}] for {incident_type}. Awaiting media...")
+    print(f"[SOS] Alert received from mobile at [{user_lat}, {user_lng}] for {incident_type}. Awaiting media...")
     
     try:
+        # Calculate nearest drone for dashboard suggestion
+        best_drone, dist = get_nearest_drone(user_lat, user_lng)
+        drone_id = best_drone['id'] if best_drone else "Swargate Drone"
+        display_dist = round(dist, 2) if dist != float('inf') else 0
+
+        # Generate a consistent ID for this SOS event
+        sos_id = f"SOS-{int(datetime.utcnow().timestamp())}"
+
         # 1. Update Map UI with SOS Ping
         socketio.emit('ui_pulse_location', {
+            "id": sos_id,
             "lat": user_lat,
             "lng": user_lng,
-            "type": incident_type
+            "type": incident_type,
+            "droneId": drone_id,
+            "distance": display_dist
         })
         
         # 2. Push to Active Service Calls panel natively
         socketio.emit('cctv_anomaly', {
-            "id": f"SOS-{int(datetime.utcnow().timestamp())}",
+            "id": sos_id,
             "label": f"SOS: {incident_type}",
             "confidence": 0.50, # Initial confidence before AI
             "location": [user_lat, user_lng],
+            "assignedUnit": drone_id,
+            "distance": display_dist,
             "description": f"Manual Interface Trigger: {manual_note}. Awaiting media evidence for drone dispatch authorization." if manual_note else "Emergency SOS signal triggered manually. Awaiting video evidence.",
             "timestamp": datetime.utcnow().isoformat() + "Z"
         })
-        print("📡 Successfully emitted UI alerts to dashboard!")
+        print("[+] Successfully emitted UI alerts to dashboard!")
         return jsonify({
             "status": "SUCCESS", 
             "message": "SOS pulse sent. Upload video evidence for drone authorization."
         }), 200
         
     except Exception as e:
-        print(f"⚠️ Socket Emission failed: {e}")
+        print(f"[!] Socket Emission failed: {e}")
         return jsonify({"status": "ERROR", "message": str(e)}), 500
 
 
@@ -222,7 +236,7 @@ def handle_evidence():
     description = report_data.get('description', 'Evidence received from field.')
     
     print("\n" + "="*50)
-    print(f"📹 EDGE AI MEDIA ALERT RECEIVED FROM {camera_id}!")
+    print(f"[AI] EDGE AI MEDIA ALERT RECEIVED FROM {camera_id}!")
     print(f"Priority Level: {priority}")
     print(f"Severity Score: {severity_score}/100")
     print(f"AI Summary: {description}")
@@ -241,7 +255,7 @@ def handle_evidence():
     if severity_score > 50 and priority != "FINAL_SUMMARY":
         best_drone, dist = dispatch_drone(lat, lng, severity_score)
         drone_id = best_drone['id'] if best_drone else "NO DRONES AVAILABLE"
-        print(f"🚁 Confirming AI Dispatch: {drone_id} to [{lat:.4f}, {lng:.4f}]")
+        print(f"[AI] Confirming AI Dispatch: {drone_id} to [{lat:.4f}, {lng:.4f}]")
 
         # ── EMIT DIRECTLY TO DASHBOARD OVER SOCKETIO ──
         try:
@@ -286,9 +300,9 @@ def handle_evidence():
                 "timestamp": datetime.utcnow().isoformat() + "Z"
             })
             
-            print("📡 AI Dispatch events emitted to dashboard successfully!")
+            print("[+] AI Dispatch events emitted to dashboard successfully!")
         except Exception as e:
-            print(f"⚠️ Socket Emission failed: {e}")
+            print(f"[!] Socket Emission failed: {e}")
     else:
         # Final Summary or Low Severity logic
         try:
@@ -300,9 +314,9 @@ def handle_evidence():
                     "timestamp": datetime.utcnow().isoformat() + "Z"
                 }
             })
-            print("📡 Standard Intel Brief emitted to dashboard!")
+            print("[+] Standard Intel Brief emitted to dashboard!")
         except Exception as e:
-            print(f"⚠️ Socket Emission failed: {e}")
+            print(f"[!] Socket Emission failed: {e}")
 
     print("="*50 + "\n")
     
@@ -314,8 +328,8 @@ def handle_evidence():
 
 # --- 9. START SERVER ---
 if __name__ == '__main__':
-    print("\n" + "╔" + "═"*48 + "╗")
-    print("║  📡 GUARDIAN AI COMMAND CENTER — PORT 5001      ║")
-    print("║  Flask API + SocketIO + Gemini AI Active        ║")
-    print("╚" + "═"*48 + "╝\n")
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True, use_reloader=False)
+    print("\n" + "="*50)
+    print("  GUARDIAN AI COMMAND CENTER - PORT 5001")
+    print("  Flask API + SocketIO + Gemini AI Active")
+    print("="*50 + "\n")
+    socketio.run(app, host='0.0.0.0', port=5001, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)

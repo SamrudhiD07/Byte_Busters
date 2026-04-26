@@ -3,3 +3,6 @@ AI_Engine/video_input/
 AI_Engine/*.pt
 AI_Engine/__pycache__/
 *.mp4
+.env
+AI_Engine/.env
+mobileapp.zip

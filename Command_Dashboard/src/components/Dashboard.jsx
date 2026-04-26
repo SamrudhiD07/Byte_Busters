@@ -30,6 +30,28 @@ const Dashboard = () => {
   const [activeView, setActiveView] = React.useState('dashboard');
   const [isDeployModalOpen, setIsDeployModalOpen] = React.useState(false);
   const [pendingAlertId, setPendingAlertId] = React.useState(null);
+  const [pendingAlertCoords, setPendingAlertCoords] = React.useState(null);
+
+  // Derive emergency data from pending alert if needed
+  const effectiveEmergencyData = React.useMemo(() => {
+    if (sosEmergency) return sosEmergency;
+    if (pendingAlertId) {
+      const alert = alertLog.find(a => a.id === pendingAlertId);
+      // Priority: 1. Manual selection coords, 2. Alert Log coords, 3. Fallback
+      const lat = pendingAlertCoords?.[0] || alert?.location?.[0];
+      const lng = pendingAlertCoords?.[1] || alert?.location?.[1];
+      
+      return {
+        droneId: alert?.assignedUnit,
+        distance: alert?.distance,
+        lat: lat,
+        lng: lng,
+        type: alert?.object || 'SOS ALERT',
+        user: 'Tactical System'
+      };
+    }
+    return null;
+  }, [sosEmergency, pendingAlertId, pendingAlertCoords, alertLog]);
 
   // VIDEO UPLOAD STATE
   const [isVideoUploadModalOpen, setIsVideoUploadModalOpen] = React.useState(false);
@@ -123,6 +145,9 @@ const Dashboard = () => {
       peerInstance.current = peer;
 
       peer.on('open', () => {
+        if (serverHost === 'localhost' || serverHost === '127.0.0.1') {
+          console.warn('⚠️ WARNING: You are on localhost. Mobile nodes will NOT be able to connect to this hub. Use your IP address instead.');
+        }
         console.log('✅ Tactical Hub is ONLINE');
         setPeerStatus('ONLINE');
       });
@@ -167,7 +192,7 @@ const Dashboard = () => {
     };
   }, []);
 
-  const handleDeploy = (caseId, droneId = 'SN_DRONE01') => {
+  const handleDeploy = (caseId, droneId = 'SN_DRONE01', lat, lng) => {
     // Update drone target in system context if needed
     deployDrone(caseId, droneId);
 
@@ -176,6 +201,8 @@ const Dashboard = () => {
     setActiveMissions(prev => [...prev, {
       id: caseId,
       droneId: droneId,
+      lat: lat,
+      lng: lng,
       startTime: Date.now()
     }]);
     // Don't auto-jump! Watch it on dashboard map
@@ -189,19 +216,23 @@ const Dashboard = () => {
   // Handle SOS deploy confirmation
   const handleSOSDeploy = (droneId) => {
     setIsDeployModalOpen(false);
+    
+    const lat = effectiveEmergencyData?.lat;
+    const lng = effectiveEmergencyData?.lng;
+
     if (sosEmergency) {
       // Deploy the first pending alert
       const firstPending = alertLog.find(a => a.status === 'PENDING_AUTHORITY');
       if (firstPending) {
-        handleDeploy(firstPending.id, droneId);
+        handleDeploy(firstPending.id, droneId, lat, lng);
       } else {
-        handleDeploy('SOS_MISSION', droneId);
+        handleDeploy('SOS_MISSION', droneId, lat, lng);
       }
     } else if (pendingAlertId) {
-      handleDeploy(pendingAlertId, droneId);
+      handleDeploy(pendingAlertId, droneId, lat, lng);
       setPendingAlertId(null);
     } else {
-      handleDeploy('MANUAL_MISSION', droneId);
+      handleDeploy('MANUAL_MISSION', droneId, lat, lng);
     }
     setSosEmergency(null);
   };
@@ -217,6 +248,7 @@ const Dashboard = () => {
     setIsDeployModalOpen(false);
     setSosEmergency(null);
     setPendingAlertId(null);
+    setPendingAlertCoords(null);
   };
 
   return (
@@ -279,7 +311,11 @@ const Dashboard = () => {
             <div className="absolute inset-0 z-0 bg-black">
               <CommandMap
                 mapState={mapState}
-                onDeployClick={() => setIsDeployModalOpen(true)}
+                onDeployClick={(alertId, coords) => {
+                  setPendingAlertId(alertId);
+                  setPendingAlertCoords(coords);
+                  setIsDeployModalOpen(true);
+                }}
               />
 
               {/* OVERVIEW MODE OVERLAYS (City View) */}
@@ -336,7 +372,7 @@ const Dashboard = () => {
           <DeployModal
             isOpen={isDeployModalOpen}
             onClose={handleModalClose}
-            emergencyData={sosEmergency}
+            emergencyData={effectiveEmergencyData}
             onStandby={handleSOSStandby}
             onDeploy={handleSOSDeploy}
           />
